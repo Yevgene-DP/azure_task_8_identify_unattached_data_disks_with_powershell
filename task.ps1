@@ -1,14 +1,22 @@
+$resourceGroupName = "mate-azure-task-5"
 
-$resourceGroup = "mate-azure-task-5"
-$outputPath = "result.json"
+$disks = Get-AzDisk -ResourceGroupName $resourceGroupName
 
-$disks = Get-AzDisk -ResourceGroupName $resourceGroup
 
-$unattachedDisks = $disks | Where-Object { !$_.ManagedBy }
+$unattachedDisks = $disks | Where-Object { $_.DiskState -eq "Unattached" -or !$_.ManagedBy }
 
-$diskNames = $unattachedDisks | Select-Object -ExpandProperty Name
+$result = $unattachedDisks | ForEach-Object {
+    [PSCustomObject]@{
+        Name               = $_.Name
+        DiskSizeGB         = $_.DiskSizeGB
+        Location           = $_.Location
+        DiskState          = $_.DiskState
+        ResourceGroupName  = $_.ResourceGroupName
+        Sku                = @{
+            Name = $_.Sku.Name
+        }
+        ManagedBy          = if ($_.ManagedBy) { $_.ManagedBy } else { $null }
+    }
+}
 
-$diskNames | ConvertTo-Json -Depth 1 | Out-File -Encoding UTF8 $outputPath
-
-Write-Host "✅ Unattached disks saved to $outputPath"
-# Write your code here
+$result | ConvertTo-Json -Depth 3 | Out-File -Encoding UTF8 -FilePath "result.json"
